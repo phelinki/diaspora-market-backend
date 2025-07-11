@@ -23,11 +23,11 @@ router.post('/register', authenticateToken, async (req, res) => {
       phone,
       email,
       website,
-      ownerEthnicity,
-      yearsInBusiness
+      nationality,
+      showNationality
     } = req.body;
 
-    // Validation
+    // Validation - only required fields
     const requiredFields = [
       'businessName',
       'category', 
@@ -36,9 +36,7 @@ router.post('/register', authenticateToken, async (req, res) => {
       'city',
       'state',
       'phone',
-      'email',
-      'ownerEthnicity',
-      'yearsInBusiness'
+      'email'
     ];
 
     const missingFields = requiredFields.filter(field => !req.body[field] || req.body[field].trim() === '');
@@ -78,8 +76,8 @@ router.post('/register', authenticateToken, async (req, res) => {
       phone,
       email,
       website: website || '',
-      ownerEthnicity,
-      yearsInBusiness,
+      nationality: nationality || null,
+      showNationality: Boolean(showNationality && nationality), // Only show if nationality is provided and user wants to show it
       ownerId: req.user.id,
       ownerEmail: req.user.email,
       status: 'active',
@@ -93,6 +91,7 @@ router.post('/register', authenticateToken, async (req, res) => {
 
     console.log('✅ Business registered successfully:', newBusiness.businessName);
     console.log('📊 Total businesses:', businesses.length);
+    console.log('🌍 Nationality display:', newBusiness.showNationality ? newBusiness.nationality : 'Hidden');
 
     res.status(201).json({
       success: true,
@@ -110,10 +109,18 @@ router.post('/register', authenticateToken, async (req, res) => {
   }
 });
 
-// Get all businesses (for listing)
+// Get all businesses (for listing) - respects showNationality setting
 router.get('/list', (req, res) => {
   try {
-    const activeBusinesses = businesses.filter(b => b.status === 'active');
+    const activeBusinesses = businesses.filter(b => b.status === 'active').map(business => {
+      // Only include nationality in public listing if showNationality is true
+      const publicBusiness = { ...business };
+      if (!business.showNationality) {
+        delete publicBusiness.nationality;
+        delete publicBusiness.showNationality;
+      }
+      return publicBusiness;
+    });
     
     res.json({
       success: true,
@@ -129,7 +136,7 @@ router.get('/list', (req, res) => {
   }
 });
 
-// Get businesses by owner
+// Get businesses by owner (includes all fields)
 router.get('/my-businesses', authenticateToken, (req, res) => {
   try {
     const userBusinesses = businesses.filter(b => b.ownerId === req.user.id);
